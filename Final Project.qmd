@@ -5,10 +5,13 @@ editor: visual
 ---
 
 # Final Project Proposal
-Research Question: Is there a relationship between Foreign Aid (and/or Foreign Direct Investment) and Corruption in Developing Countries? I wrote my PPE Capstone paper on the relationship between Foreign Direct Investments (FDIs) and Corruption. I am interested in determining if foreign aid/investment improves or worsens corruptions, and under what conditions.
+
+Research Question: Is there a relationship between Foreign Aid (and/or Foreign Direct Investment) and Corruption in Developing Countries? I wrote my PPE Capstone paper on the relationship between Foreign Direct Investments (FDIs) and Corruption. I am interested in determining if foreign aid/investment improves or worsens corruptions, and under what conditions...
 
 # Hypothesis
+
 I imagine that this project will use Corruption levels as the Dependent Variable and Level/Type of Foreign Aid/Direct Investment as the Independent Variable. I also imagine that the type of political institution, trustworthiness of leaders, and location (which will make the analysis more complex) will impact the relationship between my two variables, which I will need help to control for and think through.
 
 # Proposes a dataset and measures that will help you answer it
+
 I hope to use datasets that measure the type/level of foreign aid a country receives, how those funds are used, the poltical stabilty of the country, and levels (or perceived levels) of corruption. I believe that AidData, World Bank Governance Indicators, and Transparency International’s Corruption Perception Index will help, but I am open to exploring other data.
