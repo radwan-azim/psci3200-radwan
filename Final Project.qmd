@@ -4,14 +4,122 @@ format: html
 editor: visual
 ---
 
-# Final Project Proposal
+# Part I: Final Project Proposal
 
-Research Question: Is there a relationship between Foreign Aid (and/or Foreign Direct Investment) and Corruption in Developing Countries? I wrote my PPE Capstone paper on the relationship between Foreign Direct Investments (FDIs) and Corruption. I am interested in determining if foreign aid/investment improves or worsens corruptions, and under what conditions...
+## Research Question
 
-# Hypothesis
+Is there a relationship between Foreign Aid (and/or Foreign Direct Investment) and Corruption in Developing Countries? I wrote my PPE Capstone paper on the relationship between Foreign Direct Investments (FDIs) and Corruption. I am interested in determining if foreign aid/investment improves or worsens corruptions, and under what conditions...
+
+## Hypothesis
 
 I imagine that this project will use Corruption levels as the Dependent Variable and Level/Type of Foreign Aid/Direct Investment as the Independent Variable. I also imagine that the type of political institution, trustworthiness of leaders, and location (which will make the analysis more complex) will impact the relationship between my two variables, which I will need help to control for and think through.
 
-# Proposes a dataset and measures that will help you answer it
+## Proposes a dataset and measures that will help you answer it
 
 I hope to use datasets that measure the type/level of foreign aid a country receives, how those funds are used, the poltical stabilty of the country, and levels (or perceived levels) of corruption. I believe that AidData, World Bank Governance Indicators, and Transparency International’s Corruption Perception Index will help, but I am open to exploring other data.
+
+# Part II: **Final Project Research Design**
+
+## Describe your research question and provide some background on why you find it interesting or important
+
+My research question examines the causal relationship between foreign aid and corruption and the moderating effect of democracy. In other words, I am hoping to explore the relationship between foreign aid and corruption while testing whether democracy interacts with foreign aid to produce corruption outcomes. I am interested in exploring this topic because much research has been done on the impact of foreign aid on variables such as economic growth and corruption, but there has not been an exploration of democracy as a moderating effect on foreign aid and outcomes. However, my early exploration is inspired by Aid, Policies, and Growth By Craig Burnside and David Dollar, which found that foreign aid has a positive impact on growth in developing countries with good fiscal, monetary, and trade policies but has little effect in the presence of poor policies. Similarly, a study called The effect of foreign aid on corruption: A quantile regression approach by Keisuke Okada and Sovannroeun Samreth found that foreign aid generally reduces corruption, and its reduction effect is greater in less corrupt countries. These academic articles demonstrate a moderating effect from foreign aid on outcomes, something I wish to explore further.
+
+## State at least one testable hypothesis
+
+I hypothesize that foreign aid causes an increase in corruption in countries with low democracy scores but decreases corruption in countries with high democracy scores. I base this hypothesis on the fact that earlier research indicates that foreign aid has different circumstances where it can succeed in outcomes like economic growth and corruption. The main reason that I expect a negative effect on corruption from an interaction between foreign aid and democracy is because of the idea that democracies have greater institutions that ensure transparency and accountability, leading to greater allocation of resources and less corrupt practices. However, countries that have less democratic institutions can expect to have weaker mechanisms that monitor the allocation of foreign aid and resources in general. This argument is also supported by past research that I cited above, where stronger institutions have a greater effect on foreign aid success and economic growth. As a result, democratic institutions, as opposed to authoritarian ones, will have a greater impact on reducing corruption, whereas non-democratic regimes will be bolstered by foreign aid, increasing corruption
+
+## Briefly discuss the specific variables you will use to test your hypothesis and the dataset they are drawn from
+
+The main variables that I am using are official development assistance (ODA), democracy, and corruption data. I am using data from the World Bank, Freedom House, and Corruption Perception Index, respectively. I am using panel data using country and year. 
+
+```{r}
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+# corruption perception index
+cpi <- read_excel("/Users/radnerp/Documents/GitHub/psci3200-radwan/Data/TI-CPI.xlsx")
+cpi_score <- cpi %>%
+  filter(Indicator == "Corruption Perceptions Index Score")
+
+cpi_score_long <- cpi_score %>%
+  pivot_longer(
+    cols = `2012`:`2023`,
+    names_to = "Year",
+    values_to = "Value"
+  ) %>%
+  select(`Economy Name`, `Value`, `Year`)
+
+#democracy index, freedom house
+democracy <- read_excel("/Users/radnerp/Documents/GitHub/psci3200-radwan/Data/All_data_FIW_2013-2024.xlsx")
+
+colnames(democracy) <- democracy[1, ]
+democracy <- democracy[-1, ]
+
+democracy <- democracy %>%
+  select(`Country/Territory`, Edition, Total)
+
+#Official development assistance
+oda <- read.csv("/Users/radnerp/Documents/GitHub/psci3200-radwan/Data/API_DT.ODA.ALLD.KD_DS2_en_csv_v2_14437/API_DT.ODA.ALLD.KD_DS2_en_csv_v2_14437.csv")
+
+oda_long <- oda %>%
+  pivot_longer(cols = starts_with("X"), names_to = "Year", values_to = "Value") %>%
+  mutate(Year = as.numeric(gsub("X", "", Year)))  # Remove 'X' prefix and convert to numeric
+
+oda_long <- oda_long %>%
+  select(Country.Name, Year, Value)
+
+#merge all three by year and country
+colnames(democracy) <- c("Country", "Year", "Democracy_Score")
+colnames(cpi_score_long) <- c("Country", "CPI_Score", "Year")
+colnames(oda_long) <- c("Country", "Year", "ODA_Value")
+
+# year is numeric
+democracy <- democracy %>% mutate(Year = as.numeric(Year))
+cpi_score_long <- cpi_score_long %>% mutate(Year = as.numeric(Year))
+
+# Country and Year
+merged_data <- cpi_score_long %>%
+  full_join(democracy, by = c("Country", "Year")) %>%
+  full_join(oda_long, by = c("Country", "Year"))
+
+#change columns to numeric
+
+merged_data <- merged_data %>%
+  mutate(across(CPI_Score:ODA_Value, as.numeric))
+
+merged_data$Year <- as.factor(merged_data$Year)
+
+#regression
+regression <- lm(CPI_Score ~ ODA_Value * Democracy_Score + Country + Year, merged_data)
+summary(regression)
+
+#visual
+
+ggplot(merged_data, aes(x = ODA_Value * Democracy_Score, y = CPI_Score)) +
+  geom_point(alpha = 0.5) +  # Scatter plot with transparency
+  geom_smooth(method = "lm", color = "red") +  # Regression line
+  labs(
+    x = "ODA Value * Democracy Score",
+    y = "CPI Score",
+    title = "Regression Analysis: CPI Score vs. ODA * Democracy Score"
+  ) +
+  theme_minimal()
+```
+
+## Specify the main regression model you will use to test your hypothesis
+
+The regression equation is:
+
+$$
+CPI\_Score = \beta_0 + \beta_1 (ODA\_Value) + \beta_2 (Democracy\_Score) + \beta_3 (ODA\_Value \times Democracy\_Score) + \sum \beta_4 (Country) + \beta_5 (Year) + \epsilon
+$$
+
+### Explanation:
+
+-   $\beta_0$: Intercept (constant term)
+-   $\beta_1 (ODA\_Value)$: Coefficient for Official Development Assistance (ODA)
+-   $\beta_2 (Democracy\_Score)$: Coefficient for Democracy Score
+-   $\beta_3 (ODA\_Value \times Democracy\_Score)$: Interaction term capturing the combined effect of ODA and Democracy Score
+-   $\sum \beta_4 (Country)$: Country fixed effects (categorical variable)
+-   $\beta_5 (Year)$: Coefficient for year to account for time trends
+-   $\epsilon$: Error term (unexplained variation)
