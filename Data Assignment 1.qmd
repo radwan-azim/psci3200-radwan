@@ -1,0 +1,265 @@
+---
+title: "PSCI 3200 Data Assignment 1"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,         # Set to FALSE if you want to hide all code
+  message = FALSE,     # Suppresses package load messages
+  warning = FALSE      # Suppresses warnings
+)
+```
+
+## **Part 1: Read-in data and prepare for analysis**
+
+```{r}
+library(ggplot2)
+library(readr)
+library(ggdag)
+library(tidyverse)
+library(gt)
+library(modelsummary)
+library(dplyr)
+
+# read-in data
+dat = read_csv("https://raw.githubusercontent.com/jrspringman/psci3200-globaldev/main/workshops/aau_survey/clean_endline_did.csv" ) %>%
+    # clean home region variable
+  mutate(q8_baseline = ifelse(q8_baseline == "Southern Nations, Nationalities, and Peoples Region", "SNNPR", q8_baseline), 
+         q8_baseline = str_remove(q8_baseline, " Region"))
+# create color palette for plotting
+palette = MetBrewer::met.brewer(name = "Cross")
+```
+
+```{r}
+data <- dat %>%
+  select(
+    response_id,
+    treatment_status,
+    user_language,
+    gender_bl = q3_baseline,
+    
+    # Future plans for career in public sector or civil society
+    plan_civil_society_el = q26_civ,
+    plan_civil_society_bl = q26_civ_baseline,
+    
+    plan_politics_el = q26_politics,
+    plan_politics_bl = q26_politics_baseline,
+    
+    plan_public_sector_el = q26_public,
+    plan_public_sector_bl = q26_public_baseline,
+    
+    plan_run_for_office_el = q27_1,
+    plan_run_for_office_bl = q27_1_baseline,
+    
+    plan_start_ngo_el = q27_3,
+    plan_start_ngo_bl = q27_3_baseline,
+    
+    # Feelings of political efficacy
+    efficacy_self_change_el = q17_3,
+    efficacy_self_change_bl = q17_3_baseline,
+    
+    efficacy_youth_opportunity_el = q17_1,
+    efficacy_youth_opportunity_bl = q17_1_baseline,
+    
+    efficacy_youth_change_el = q17_2,
+    efficacy_youth_change_bl = q17_2_baseline
+  )
+```
+
+## **Part 2: Create Index Measures**
+
+*First, in your own words, explain the concept of an additive index and an averaged z-score, including how they are calculated, when you should use them, and when you cannot use them. What are the benefits of each approach?*
+
+An additive index combines responses to multiple related questions by summing or averaging the raw values. You should use an additive index when variables are measured on a common scale and if we are interested in the cumulative amount of something. The benefits are interpretability and simplicity.
+
+An averaged z-score index standardizes each variable so it has a mean of 0 and standard deviation of 1, then averages the standardized scores. This accounts for different scales or variances across items. You should use an averaged z-score when when variables are measured on different scales and when variables cannot be summed. The benefits are interpretability for standard deviations from the mean and outlier detection.
+
+```{r}
+#future plans, additive indexing
+data <- data %>%
+  mutate(
+    #baseline
+    additive_future_plans_bl = plan_civil_society_bl + plan_politics_bl + 
+                      plan_public_sector_bl + plan_run_for_office_bl + 
+                      plan_start_ngo_bl,
+    
+    #endline
+    additive_future_plans_el = plan_civil_society_el + plan_politics_el + 
+                      plan_public_sector_el + plan_run_for_office_el + 
+                      plan_start_ngo_el
+  )
+```
+
+```{r}
+#z-score
+data <- data %>%
+  mutate(
+    # average z-score index for future plans, baseline
+    z_future_plans_bl = (
+      as.numeric(scale(plan_civil_society_bl)) + 
+      as.numeric(scale(plan_politics_bl)) + 
+      as.numeric(scale(plan_public_sector_bl)) + 
+      as.numeric(scale(plan_run_for_office_bl)) + 
+      as.numeric(scale(plan_start_ngo_bl))
+    ) / 5,
+    #added all the z-scores then divided by 5
+    # endline
+    z_future_plans_el = (
+      as.numeric(scale(plan_civil_society_el)) + 
+      as.numeric(scale(plan_politics_el)) + 
+      as.numeric(scale(plan_public_sector_el)) + 
+      as.numeric(scale(plan_run_for_office_el)) + 
+      as.numeric(scale(plan_start_ngo_el))
+    ) / 5,
+    #added all the z-scores then divided by 5
+    # average z-score index for political efficacy, baseline
+    z_political_efficacy_bl = (
+      as.numeric(scale(efficacy_self_change_bl)) + 
+      as.numeric(scale(efficacy_youth_opportunity_bl)) + 
+      as.numeric(scale(efficacy_youth_change_bl))
+    ) / 3,
+    #added all the z-scores then divided by 3
+    # endline
+    z_political_efficacy_el = (
+      as.numeric(scale(efficacy_self_change_el)) + 
+      as.numeric(scale(efficacy_youth_opportunity_el)) + 
+      as.numeric(scale(efficacy_youth_change_el))
+    ) / 3
+    #added all the z-scores then divided by 5
+  )
+```
+
+Distribution of z-scores
+
+```{r}
+# Future Plans (Baseline)
+ggplot(data, aes(x = z_future_plans_bl)) +
+  geom_density(fill = "blue", alpha = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(title = "Future Plans (Baseline)", x = "Z-Score", y = "Density") +
+  theme_minimal()
+
+# Future Plans (Endline)
+ggplot(data, aes(x = z_future_plans_el)) +
+  geom_density(fill = "blue", alpha = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(title = "Future Plans (Endline)", x = "Z-Score", y = "Density") +
+  theme_minimal()
+
+# Political Efficacy (Baseline)
+ggplot(data, aes(x = z_political_efficacy_bl)) +
+  geom_density(fill = "blue", alpha = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(title = "Political Efficacy (Baseline)", x = "Z-Score", y = "Density") +
+  theme_minimal()
+
+# Political Efficacy (Endline)
+ggplot(data, aes(x = z_political_efficacy_el)) +
+  geom_density(fill = "blue", alpha = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  labs(title = "Political Efficacy (Endline)", x = "Z-Score", y = "Density") +
+  theme_minimal()
+```
+
+*To make sure that these scores look as you’d expect, create a `ggplot` visualizing the distribution of the z-scores at baseline and endline. You should have 4 figures: one corresponding to each z-score at baseline and endline. In words, describe whether the figures tell us anything about changes over time.*
+
+Between the baseline and endline in future plans, there appears to be no signifcant changes in the distribution of the z-score. However, for political efficacy, the baseline appears to be less distributed, while the endline is much smoother.
+
+## **Part 3: Estimating models**
+
+```{r}
+# subset data to only required variables for modeling
+data_subset <- data %>%
+  select(
+    response_id,
+    gender_bl,
+    z_future_plans_bl,
+    z_future_plans_el,
+    z_political_efficacy_bl,
+    z_political_efficacy_el
+  )
+
+```
+
+**Requirement 5**
+
+```{r}
+#regression for requirement 5, with future plans as the DV and political efficacy as the IV
+req_5 <- lm(z_future_plans_bl ~ z_political_efficacy_bl, data_subset)
+
+#loading package
+
+modelsummary(req_5,
+             title = "Linear Regression: Future Plans ~ Political Efficacy (Baseline)",
+             stars = TRUE)
+```
+
+Alpha is the intercept where political efficacy is zero, or-0.005, and Beta is a one unit increase in political efficacy, or 0.092. In other words, a one unit increase in political efficacy is associated with a 0.092 increase in future plans in public service or civil society.
+
+This aligns with the idea that belief one's actions makes a difference should lead to an individual being more politically involved, in this case pursuing public service/civil society careers. In other words, belief in one’s ability to influence change motivates political engagement and service.
+
+Assumptions of this model are that there are no confounding variables effecting political efficacy or future plans in public service/civil society, but there are many possible variables like demographic variables or socioeconomic status. Also, this model assumes there is no spurious relationship, when it could be the case that future plans in public service/civil society is associated with political efficacy, where plans for a certain career impact how you feel about about one's ability to influence change.
+
+**Requirement 6**
+
+```{r}
+#creating binary indicator taking a value of 1 of the individual has a value greater than or equal to the sample mean and a value of 0 if the individual has a value below the sample mean.
+data_subset_binary <- data_subset %>%
+  mutate(
+    binary_z_political_efficacy_bl = ifelse(z_political_efficacy_bl >= mean(z_political_efficacy_bl, na.rm = TRUE), 1, 0), #if political efficacy is above the mean, then binary of 1.
+    binary_z_political_efficacy_el = ifelse(z_political_efficacy_el >= mean(z_political_efficacy_el, na.rm = TRUE), 1, 0) #if political efficacy is above the mean, then binary of 1.
+  )
+
+#interact binary “Feelings of political efficacy” indicator with the gender indicator
+req_6 <- lm(z_future_plans_bl ~ binary_z_political_efficacy_bl * gender_bl, data_subset_binary)
+
+modelsummary(req_6,
+             title = "Linear Regression: Future Plans ~ Political Efficacy (Baseline) * Gender",
+             stars = TRUE)
+```
+
+Alpha represents the future plans for public service or civil society when all the Independent variables are zero, where political efficacy is 0 and the gender is Female. The value of -0.111 represents this future plans value.
+
+Beta 1 represents an increase in political efficacy while holding gender as Female, where this associates with a 0.109 increase in future plans for public service or civil society.
+
+Beta 2 represents if a respondent is a Male while holding political efficacy at 0, where this associates with a 0.057 increase in future plans for public service or civil society.
+
+Beta 3 represents the interaction effect with political efficacy increasing and being male. The coefficient is 0.003, which is negligible, but if added to Beta 1, is associated with a 0.112 increase in future plans for public service or civil society.
+
+An interpretation of an interaction between political efficacy and gender tells us whether the effect of feeling politically empowered differs for male and female students when it comes to their future careers. We can conclude that there is no meaningful difference in how political efficacy affects future plans for men versus women based on our regression results.
+
+**Requirement 7**
+
+```{r}
+#convert data to long
+long_data <- data_subset %>%
+  
+  #columns to reshape
+  pivot_longer(
+    cols = c(z_future_plans_bl, z_future_plans_el,
+             z_political_efficacy_bl, z_political_efficacy_el),
+    
+    #splitting into variable name and time (bl or el)
+    names_to = c(".value", "time"),
+    names_pattern = "(?:z_)?(.*)_(bl|el)"  # supports both z_ and non-z_ prefix
+  ) %>%
+  
+  #recode time for clarity
+  mutate(
+    time = ifelse(time == "bl", "baseline", "endline")
+  )
+
+#running regression
+req_7 <- lm(future_plans ~ political_efficacy + factor(response_id), data = long_data)
+
+#model summary without showing fixed effects
+modelsummary(req_7,
+             title = "Linear Regression: Future Plans ~ Political Efficacy * Gender (with Response ID Fixed Effects)",
+             stars = TRUE,
+             coef_omit = "response_id")  #this hides all coefficients starting with response_id
+
+```
+
+The effect of Beta 1 (political efficacy) has become negligible with a 0.010 association with future career plans. This is because Beta 1 now captures the within-person effect of political efficacy on future plans, where an individual's political efficacy over time are associated with changes in their future plans, holding constant any fixed traits about the person. In other words, a change in political efficacy between baseline and endline is not strongly associated with a change in their future plans.
